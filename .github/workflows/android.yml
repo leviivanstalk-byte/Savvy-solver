@@ -1,0 +1,254 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: set up JDK 11
+      uses: actions/setup-java@v4
+      with:
+        java-version: '11'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    - name: Build with Gradle
+      run: ./gradlew build
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Write package.json
+        run: |
+          mkdir -p $(dirname package.json)
+          cat > package.json <<'SAVVY_EOF'
+          {
+            "name": "savvy-solver",
+            "version": "0.1.0",
+            "private": true,
+            "dependencies": {
+              "@capacitor/android": "^7.0.0",
+              "@capacitor/cli": "^7.0.0",
+              "@capacitor/core": "^7.0.0"
+            }
+          }
+          SAVVY_EOF
+
+      - name: Write Capacitor config
+        run: |
+          mkdir -p $(dirname capacitor.config.json)
+          cat > capacitor.config.json <<'SAVVY_EOF'
+          {
+            "appId": "com.savvysolver.app",
+            "appName": "Savvy Solver",
+            "webDir": "www",
+            "backgroundColor": "#12103a"
+          }
+          SAVVY_EOF
+
+      - name: Write the app
+        run: |
+          mkdir -p $(dirname www/index.html)
+          cat > www/index.html <<'SAVVY_EOF'
+          <!doctype html>
+          <html lang="en"><head><meta charset="utf-8">
+          <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+          <meta name="theme-color" content="#12103a">
+          <title>Savvy Solver</title>
+          <style>
+          :root{--g0:#3d3a78;--g1:#f0b429;--g2:#2fc98a;--s:min(13.5vw,6.4dvh,58px)}
+          *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+          html,body{height:100%;margin:0;overflow:hidden}
+          body{background:radial-gradient(130% 62% at 50% -8%,#5a4ee6 0%,#2a2478 38%,#12103a 72%) #12103a;color:#f4f2ff;font:600 16px/1.25 Nunito,"Varela Round",ui-rounded,system-ui,sans-serif;user-select:none}
+          #app{height:100dvh;max-width:480px;margin:auto;display:flex;flex-direction:column;padding:max(8px,env(safe-area-inset-top)) 12px max(10px,env(safe-area-inset-bottom))}
+          header{display:flex;align-items:center;gap:6px}
+          h1{flex:1;margin:0;font-size:22px;font-weight:800}
+          header button{border:0;border-radius:999px;padding:7px 12px;background:rgba(255,255,255,.12);color:inherit;font:inherit;font-size:13px;font-weight:700}
+          #mute.off{opacity:.55;text-decoration:line-through}
+          #res{padding:10px 2px 4px}
+          #cnt{display:flex;align-items:baseline;gap:8px}
+          #n{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums}
+          #sub{opacity:.72;font-size:14px;margin:2px 0 8px}
+          #chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;min-height:40px;scrollbar-width:none}
+          .chip{flex:none;border:0;border-radius:999px;padding:9px 15px;background:rgba(255,255,255,.14);color:#fff;font:inherit;font-weight:800;letter-spacing:.08em;animation:in .3s both;animation-delay:calc(var(--i)*45ms)}
+          @keyframes in{from{opacity:0;transform:translateY(8px)}}
+          #board{flex:1;min-height:0;display:grid;place-content:center;gap:6px}
+          .row{display:flex;gap:6px;perspective:500px}
+          .t{width:var(--s);height:var(--s);border:0;border-radius:14px;padding:0;color:#fff;font:inherit;font-weight:800;font-size:calc(var(--s)*.55)}
+          .t:not(.e){background:linear-gradient(155deg,rgba(255,255,255,.32),rgba(255,255,255,0) 48%),var(--c);box-shadow:inset 0 -4px 0 rgba(0,0,0,.22),0 6px 16px -4px var(--c)}
+          .t.e{background:none;box-shadow:inset 0 0 0 2px rgba(255,255,255,.14)}
+          .c0{--c:var(--g0)}.c1{--c:var(--g1)}.c2{--c:var(--g2)}
+          @keyframes flip{50%{transform:rotateX(90deg)}}
+          @keyframes pop{50%{transform:scale(1.18)}}
+          @keyframes shake{20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+          @keyframes bnc{40%{transform:translateY(-16px)}}
+          .flip{animation:flip .5s ease both;animation-delay:calc(var(--d)*110ms)}
+          .flip.bnc{animation:flip .5s ease both,bnc .55s ease both;animation-delay:calc(var(--d)*110ms),calc(var(--d)*110ms + 900ms)}
+          .pop{animation:pop .16s ease}
+          .pop.q{animation-delay:calc(var(--d)*35ms)}
+          .shake{animation:shake .4s}
+          #kb{display:grid;gap:6px;padding-top:6px}
+          .kr{display:flex;gap:5px;justify-content:center}
+          .k{flex:1;height:44px;border:0;border-radius:10px;background:rgba(255,255,255,.16);color:#fff;font:inherit;font-weight:800;transition:transform .08s,opacity .2s}
+          .k.wide{flex:1.6}
+          .k0{opacity:.32}.k1{background:var(--g1);color:#2a1f00}.k2{background:var(--g2);color:#06281a}
+          #add{height:54px;border:0;border-radius:18px;color:#fff;font:inherit;font-size:18px;font-weight:800;background:linear-gradient(180deg,#9a8cff,#5b4be0);box-shadow:0 8px 22px -6px #7c6cff,inset 0 -4px 0 rgba(0,0,0,.2);transition:transform .08s}
+          .k:active,#add:active{transform:translateY(2px) scale(.96)}
+          #toast{position:fixed;left:50%;top:max(60px,env(safe-area-inset-top));transform:translate(-50%,-8px);background:#fff;color:#1a1650;padding:9px 16px;border-radius:12px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:90vw;text-align:center}
+          #toast.on{opacity:1;transform:translate(-50%,0)}
+          .cf{position:fixed;left:50%;top:55%;width:9px;height:14px;border-radius:2px;pointer-events:none;animation:cf 1.4s cubic-bezier(.2,.7,.3,1) both}
+          @keyframes cf{40%{transform:translate(var(--x),var(--y)) rotate(var(--r))}100%{transform:translate(calc(var(--x)*1.3),calc(var(--y) + 760px)) rotate(calc(var(--r)*2));opacity:0}}
+          button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+          @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
+          </style></head><body>
+          <div id="app">
+           <header><h1>Savvy Solver</h1><button id="undo">Undo</button><button id="reset">Reset</button><button id="mute">Sound</button></header>
+           <section id="res"><div id="cnt"><span id="n">0</span><span id="lbl">words left</span></div><div id="sub" aria-live="polite"></div><div id="chips"></div></section>
+           <div id="board"></div>
+           <div id="kb"></div>
+          </div>
+          <div id="toast" role="status"></div>
+          <script>
+          const $=s=>document.querySelector(s),Z=()=>({w:'',c:[0,0,0,0,0]});
+          let words=[],rows=[],cur=Z(),A={},shown=0,mute=false,ac,tt,last=null;
+          const hap=p=>{try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}};
+          function snd(f,d=.12,t='sine',v=.1,at=0,to){
+           if(mute)return;
+           try{ac=ac||new(window.AudioContext||window.webkitAudioContext)();ac.resume();
+            const o=ac.createOscillator(),g=ac.createGain(),s=ac.currentTime+at;
+            o.type=t;o.frequency.setValueAtTime(f,s);if(to)o.frequency.exponentialRampToValueAtTime(to,s+d);
+            g.gain.setValueAtTime(v,s);g.gain.exponentialRampToValueAtTime(.001,s+d);
+            o.connect(g);g.connect(ac.destination);o.start(s);o.stop(s+d)}catch(e){}}
+          function say(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+          const fb=(g,a)=>{const r=[0,0,0,0,0],u=[...a];
+           for(let i=0;i<5;i++)if(g[i]===a[i]){r[i]=2;u[i]=0}
+           for(let i=0;i<5;i++)if(!r[i]){const j=u.indexOf(g[i]);if(j>-1){r[i]=1;u[j]=0}}
+           return r.join('')};
+          const cands=()=>words.filter(a=>rows.every(x=>fb(x.w,a)===x.c.join('')));
+          function best(c){
+           if(c.length<3)return c.slice();
+           if(c.length>300){
+            const f=[0,1,2,3,4].map(()=>({}));
+            c.forEach(w=>{for(let i=0;i<5;i++)f[i][w[i]]=(f[i][w[i]]||0)+1});
+            return c.map(w=>[w,[...w].reduce((s,ch,i)=>s+f[i][ch],0)*new Set(w).size]).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0])}
+           return c.map(g=>{const m={};c.forEach(a=>{const k=fb(g,a);m[k]=(m[k]||0)+1});
+            let e=0;for(const k in m){const p=m[k]/c.length;e-=p*Math.log2(p)}return [g,e]}).sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0])}
+          function count(to){const from=shown,t0=performance.now();shown=to;
+           (function f(t){const k=Math.min(1,(t-t0)/350);$('#n').textContent=Math.round(from+(to-from)*k);if(k<1)requestAnimationFrame(f)})(t0)}
+          function stats(){
+           const sig=rows.map(x=>x.w+x.c.join('')).join();
+           if(sig===last)return;last=sig;
+           const c=cands(),n=c.length;
+           count(n);
+           $('#lbl').textContent=n===1?'word left':'words left';
+           $('#sub').textContent=!words.length?'Loading the word list…':n===0?'No word fits these colors. Tap a tile to fix one.':n===1?'That is the answer.':'Tap a word to use it as your next guess.';
+           $('#chips').innerHTML=best(c).map((w,i)=>`<button class="chip" style="--i:${i}">${w}</button>`).join('');
+           const km={};rows.forEach(x=>[...x.w].forEach((l,i)=>km[l]=Math.max(km[l]??-1,x.c[i])));
+           document.querySelectorAll('.k[data-k]').forEach(k=>{const v=km[k.dataset.k];k.className='k'+(v===undefined?'':' k'+v)})}
+          function draw(){
+           let h='';
+           for(let r=0;r<6;r++){
+            const x=r<rows.length?rows[r]:r===rows.length?cur:Z();
+            h+=`<div class="row${A.s===r?' shake':''}">`;
+            for(let i=0;i<5;i++){
+             const l=x.w[i]||'',pop=(A.p&&A.p[0]===r&&A.p[1]===i)||A.q===r;
+             h+=`<button class="t ${l?'c'+x.c[i]:'e'}${A.f===r?(A.w===r?' flip bnc':' flip'):''}${pop?(A.q===r?' pop q':' pop'):''}" style="--d:${i}" data-r="${r}" data-i="${i}"${l?'':' disabled'} aria-label="${l||'empty'}">${l}</button>`}
+            h+='</div>'}
+           $('#board').innerHTML=h;A={};stats()}
+          function bad(){hap([40,30,40]);snd(130,.25,'square',.05,0,90)}
+          function type(l){
+           if(rows.length>=6){say('Board is full. Tap Reset to start over.');return}
+           if(cur.w.length>=5)return;
+           cur.w+=l;A.p=[rows.length,cur.w.length-1];snd(640+cur.w.length*25,.05,'triangle',.06);hap(6);draw()}
+          function back(){if(!cur.w)return;cur.w=cur.w.slice(0,-1);cur.c[cur.w.length]=0;snd(300,.06,'triangle',.05);hap(6);draw()}
+          function confetti(){for(let i=0;i<40;i++){const p=document.createElement('i');p.className='cf';
+           p.style.cssText=`--x:${(Math.random()-.5)*360}px;--y:${-120-Math.random()*320}px;--r:${Math.random()*720}deg;background:hsl(${Math.random()*360} 90% 62%);animation-delay:${Math.random()*.15}s`;
+           document.body.appendChild(p);setTimeout(()=>p.remove(),1700)}}
+          function add(){
+           if(rows.length>=6){say('Board is full. Tap Reset to start over.');return}
+           if(cur.w.length<5){A.s=rows.length;bad();draw();return}
+           if(words.length&&!words.includes(cur.w))say('Not in my word list, added anyway.');
+           const win=cur.c.every(v=>v===2);
+           rows.push({w:cur.w,c:cur.c.slice()});cur=Z();
+           A.f=rows.length-1;if(win)A.w=A.f;
+           hap(win?[30,40,30,40,80]:25);
+           snd(220,.2,'sawtooth',.04,0,900);
+           [523,587,659,784,880].forEach((f,i)=>snd(f,.18,'sine',.08,.12+i*.11));
+           if(win){[523,659,784,1047].forEach((f,i)=>snd(f,.3,'triangle',.1,.8+i*.1));setTimeout(confetti,700)}
+           draw()}
+          $('#board').onclick=e=>{const t=e.target.closest('.t');if(!t||t.disabled)return;
+           const r=+t.dataset.r,i=+t.dataset.i,x=r<rows.length?rows[r]:cur;
+           x.c[i]=(x.c[i]+1)%3;snd([300,420,560][x.c[i]],.09,'triangle',.08);hap(8);draw()};
+          $('#chips').onclick=e=>{const c=e.target.closest('.chip');if(!c)return;
+           if(rows.length>=6){say('Board is full. Tap Reset to start over.');return}
+           cur={w:c.textContent,c:[0,0,0,0,0]};A.q=rows.length;snd(500,.08,'triangle',.07);hap(10);draw()};
+          const KR=['QWERTYUIOP','ASDFGHJKL','ZXCVBNM'];
+          $('#kb').innerHTML=KR.map((s,j)=>`<div class="kr">${[...s].map(l=>`<button class="k" data-k="${l}">${l}</button>`).join('')}${j===2?'<button class="k wide" data-b="1" aria-label="Delete">⌫</button>':''}</div>`).join('')+'<button id="add">Add guess</button>';
+          $('#kb').onclick=e=>{const k=e.target.closest('button');if(!k)return;
+           if(k.id==='add')add();else if(k.dataset.b)back();else if(k.dataset.k)type(k.dataset.k)};
+          $('#undo').onclick=()=>{if(cur.w)cur=Z();else rows.pop();snd(420,.12,'sine',.07,0,240);hap(10);draw()};
+          $('#reset').onclick=()=>{rows=[];cur=Z();snd(700,.3,'sine',.07,0,200);hap(15);draw()};
+          $('#mute').onclick=()=>{mute=!mute;$('#mute').classList.toggle('off',mute);if(!mute)snd(600,.1)};
+          addEventListener('keydown',e=>{if(e.ctrlKey||e.metaKey||e.altKey)return;
+           if(/^[a-z]$/i.test(e.key))type(e.key.toUpperCase());else if(e.key==='Backspace')back();else if(e.key==='Enter'&&e.target.tagName!=='BUTTON')add()});
+          draw();
+          fetch('words.txt').then(r=>r.text()).then(t=>{
+           words=[...new Set(t.split(/\s+/).map(w=>w.toUpperCase()).filter(w=>/^[A-Z]{5}$/.test(w)))];
+           last=null;draw()}).catch(()=>say('Could not load the word list.'));
+          </script></body></html>
+          SAVVY_EOF
+
+      - name: Download word list
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/charlesreid1/five-letter-words/master/sgb-words.txt -o www/words.txt \
+          || curl -fsSL https://raw.githubusercontent.com/tabatkins/wordle-list/main/words -o www/words.txt
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: Allow vibration
+        run: |
+          sed -i 's#</manifest>#    <uses-permission android:name="android.permission.VIBRATE" />\n</manifest>#' android/app/src/main/AndroidManifest.xml
+
+      - name: Sync web files
+        run: npx cap sync android
+
+      - name: Build APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: savvy-solver-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
